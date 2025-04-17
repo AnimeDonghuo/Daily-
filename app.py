@@ -1,9 +1,16 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import requests
 from bs4 import BeautifulSoup
 import re
+import os
+from telegram import Update, Bot
+from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters
 
 app = Flask(__name__)
+
+# Initialize Telegram Bot
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+bot = Bot(token=TELEGRAM_TOKEN)
 
 def extract_dailymotion_url(url):
     try:
@@ -15,14 +22,14 @@ def extract_dailymotion_url(url):
 
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Method 1: Check for JavaScript variables (common in SeaTV)
+        # Method 1: Check for JavaScript variables
         script_data = soup.find('script', string=re.compile(r'dailymotion\.com/embed/video'))
         if script_data:
             video_id = re.search(r'dailymotion\.com/embed/video/([a-zA-Z0-9]+)', script_data.text)
             if video_id:
                 return f"https://www.dailymotion.com/video/{video_id.group(1)}"
 
-        # Method 2: Check iframe (fallback)
+        # Method 2: Check iframe
         iframe = soup.find('iframe', src=re.compile(r'dailymotion\.com/embed/video/[a-zA-Z0-9]+'))
         if iframe:
             embed_url = iframe['src']
@@ -36,17 +43,38 @@ def extract_dailymotion_url(url):
         print(f"Error scraping {url}: {e}")
         return None
 
-@app.route('/scrape', methods=['GET'])
-def scrape():
-    url = request.args.get('url')
-    if not url:
-        return jsonify({"error": "Missing 'url' parameter"}), 400
+# Telegram Handlers
+def start(update: Update, context):
+    update.message.reply_text("🚀 Send me a SeaTV link, and I'll extract the Dailymotion URL!")
+
+def handle_message(update: Update, context):
+    url = update.message.text
+    if not url.startswith(("http://", "https://")):
+        update.message.reply_text("❌ Please send a valid URL.")
+        return
 
     dm_url = extract_dailymotion_url(url)
     if dm_url:
-        return jsonify({"dailymotion_url": dm_url})
+        update.message.reply_text(f"✅ Extracted Dailymotion URL:\n{dm_url}")
     else:
-        return jsonify({"error": "Dailymotion link not found in page source"}), 404
+        update.message.reply_text("❌ Failed to extract Dailymotion link. The site may use dynamic loading.")
+
+# Flask Webhook Setup
+@app.route(f'/{TELEGRAM_TOKEN}', methods=['POST'])
+def webhook():
+    dispatcher = Dispatcher(bot, None, workers=0)
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    
+    update = Update.de_json(request.get_json(force=True), bot)
+    dispatcher.process_update(update)
+    return "OK"
+
+@app.route('/')
+def home():
+    return "Bot is running!"
 
 if __name__ == '__main__':
+    # Set webhook (run once)
+    bot.set_webhook(url=f"https://YOUR_KOYEB_APP.koyeb.app/{TELEGRAM_TOKEN}")
     app.run(host='0.0.0.0', port=8080)
