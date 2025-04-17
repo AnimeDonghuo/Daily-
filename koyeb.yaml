@@ -2,7 +2,10 @@ app: dailymotion-bot
 services:
   - name: web
     ports:
-      - port: 8080  # Must match Dockerfile
+      - port: 8080
+        http_path: /health
     env:
       - name: PORT
-        value: "8080"  # Explicitly set
+        value: "8080"
+      - name: TELEGRAM_TOKEN
+        secret: telegram-token
