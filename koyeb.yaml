@@ -1,0 +1,17 @@
+app: dailymotion-extractor-bot
+services:
+  - name: web
+    ports:
+      - port: 8080
+        http_path: /health
+    healthcheck:
+      tcp: {}
+    env:
+      - name: PORT
+        value: "8080"
+      - name: TELEGRAM_TOKEN
+        secret: telegram-token
+      - name: OWNER_ID
+        secret: owner-id
+      - name: WEB_URL
+        value: https://your-app-name.koyeb.app
