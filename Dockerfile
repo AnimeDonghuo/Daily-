@@ -10,8 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app files
 COPY . .
@@ -20,5 +19,5 @@ COPY . .
 ENV PORT=8080
 EXPOSE 8080
 
-# Run directly with Python
+# Run the application
 CMD ["python", "app.py"]
