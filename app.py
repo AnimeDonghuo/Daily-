@@ -17,11 +17,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Enhanced Dailymotion pattern matching
+# CORRECTED Dailymotion pattern matching
 DM_PATTERN = re.compile(
-    r'(?:https?:\/\/(?:www\.)?dailymotion\.com\/(?:video|embed)\/([a-zA-Z0-9]+)|'
-    r'(?:data-video-id=["\']([a-zA-Z0-9]+)["\'])|'
-    r'(?:dailymotion\.com\/player\.html\?video=([a-zA-Z0-9]+))'
+    r'(https?://(?:www\.)?dailymotion\.com/(?:video|embed)/([a-zA-Z0-9]+))|'
+    r'(data-video-id=["\']([a-zA-Z0-9]+)["\'])|'
+    r'(dailymotion\.com/player\.html\?video=([a-zA-Z0-9]+))'
 )
 
 def extract_dm_links(url):
@@ -45,24 +45,9 @@ def extract_dm_links(url):
             # Find all matches in the element
             matches = DM_PATTERN.finditer(src)
             for match in matches:
-                video_id = match.group(1) or match.group(2) or match.group(3)
+                video_id = match.group(2) or match.group(4) or match.group(6)
                 if video_id:
                     found_links.add(f"https://www.dailymotion.com/video/{video_id}")
-
-        # Check for alternative server links
-        server_sections = soup.find_all(lambda tag: 'server' in str(tag).lower() or 'mirror' in str(tag).lower())
-        for section in server_sections[:3]:  # Check first 3 server sections
-            for a in section.find_all('a', href=True):
-                if not any(x in a['href'] for x in ['dailymotion', 'facebook', 'youtube']):
-                    try:
-                        server_resp = session.get(a['href'], headers=headers, timeout=10)
-                        server_soup = BeautifulSoup(server_resp.text, 'html.parser')
-                        for iframe in server_soup.find_all('iframe'):
-                            src = iframe.get('src', '')
-                            if 'dailymotion' in src:
-                                found_links.add(src)
-                    except:
-                        continue
 
         return list(found_links)
     
